@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pendulum Wave — Harvard Demonstration</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0c0a08; overflow: hidden; font-family: 'Courier New', monospace; }
+  #c { display: block; }
+
+  #overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none; z-index: 10;
+  }
+
+  #header { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); text-align: center; }
+  #header h1 { font-size: 13px; letter-spacing: 0.18em; color: #8a7a60; text-transform: uppercase; font-weight: 400; }
+  #header p { font-size: 10px; color: #4a3e2e; letter-spacing: 0.1em; margin-top: 4px; }
+
+  #timer-wrap { position: absolute; top: 20px; right: 24px; text-align: right; }
+  #timer { font-size: 32px; color: #c8a96e; letter-spacing: 0.05em; font-weight: 400; line-height: 1; }
+  #timer-label { font-size: 9px; color: #4a3e2e; letter-spacing: 0.15em; margin-top: 4px; }
+
+  #phase-wrap { position: absolute; top: 20px; left: 24px; }
+  #phase { font-size: 12px; color: #8a7a60; letter-spacing: 0.08em; line-height: 1.8; }
+  #phase span { color: #c8a96e; }
+
+  #btn-row {
+    position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 10px; pointer-events: all; align-items: center;
+  }
+
+  .btn {
+    font-family: 'Courier New', monospace; font-size: 10px; letter-spacing: 0.12em;
+    padding: 7px 18px; border: 0.5px solid #3a2e1e;
+    background: rgba(12,10,8,0.9); color: #6a5a40; cursor: pointer;
+    border-radius: 2px; transition: color 0.15s, border-color 0.15s; pointer-events: all;
+  }
+  .btn:hover { color: #c8a96e; border-color: #8a6a3e; }
+  .btn.active { color: #c8a96e; border-color: #c8a96e; }
+
+  #hint { position: absolute; bottom: 24px; right: 24px; font-size: 9px; color: #3a2e1e; line-height: 2; text-align: right; letter-spacing: 0.08em; }
+
+  #realign {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    font-size: 22px; color: #c8a96e; letter-spacing: 0.2em;
+    text-align: center; opacity: 0; transition: opacity 0.5s;
+    text-transform: uppercase; pointer-events: none;
+  }
+  #realign p { font-size: 10px; color: #8a7a60; margin-top: 8px; letter-spacing: 0.15em; }
+
+  /* ── Collapsible panel ── */
+  #panel-wrap {
+    position: absolute; bottom: 68px; left: 50%; transform: translateX(-50%);
+    pointer-events: all; width: min(700px, 96vw);
+  }
+
+  #panel-toggle {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    font-family: 'Courier New', monospace; font-size: 10px; letter-spacing: 0.12em;
+    color: #4a3e2e; cursor: pointer; border: none; background: none;
+    padding: 4px 0; margin: 0 auto 6px; width: 100%;
+    transition: color 0.15s; pointer-events: all;
+  }
+  #panel-toggle:hover { color: #8a7a60; }
+  #panel-toggle .arrow { display: inline-block; transition: transform 0.25s; font-size: 8px; }
+  #panel-toggle.open .arrow { transform: rotate(180deg); }
+
+  #panel-badge {
+    font-size: 9px; color: #3a2a18; background: #1a1208;
+    border: 0.5px solid #2a1e10; padding: 2px 8px;
+    border-radius: 2px; letter-spacing: 0.1em;
+  }
+  #panel-badge.modified { color: #5eead4; border-color: #1a4a44; background: #081814; }
+
+  #panel {
+    background: rgba(8,6,4,0.93); border: 0.5px solid #2a1e10;
+    border-radius: 3px; padding: 16px 18px 12px;
+    backdrop-filter: blur(10px);
+    display: none;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px 22px;
+  }
+  #panel.open { display: grid; }
+
+  .ctrl { display: flex; flex-direction: column; gap: 6px; }
+  .ctrl-label { color: #4a3e2e; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; }
+  .ctrl-row { display: flex; align-items: center; gap: 8px; }
+
+  input[type=range] {
+    flex: 1; -webkit-appearance: none; height: 2px;
+    background: rgba(255,255,255,0.08); border-radius: 1px; outline: none; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 12px; height: 12px;
+    border-radius: 50%; background: #c8a96e; cursor: pointer; border: 2px solid #0c0a08;
+    transition: background 0.2s;
+  }
+  input[type=range].modified::-webkit-slider-thumb { background: #5eead4; }
+
+  .val { color: #c8a96e; min-width: 38px; text-align: right; font-size: 10px; transition: color 0.2s; }
+  .val.modified { color: #5eead4; }
+
+  #panel-footer {
+    grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 8px;
+    margin-top: 2px; padding-top: 12px; border-top: 0.5px solid #1e1610;
+  }
+
+  .panel-btn {
+    font-family: 'Courier New', monospace; font-size: 9px; letter-spacing: 0.1em;
+    padding: 5px 14px; border: 0.5px solid #2a1e10;
+    background: transparent; color: #4a3e2e; cursor: pointer;
+    border-radius: 2px; transition: color 0.15s, border-color 0.15s;
+  }
+  .panel-btn:hover { color: #8a7a60; border-color: #5a3e1e; }
+  .panel-btn.apply { color: #c8a96e; border-color: #5a3a1e; }
+  .panel-btn.apply:hover { border-color: #c8a96e; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="overlay">
+  <div id="header">
+    <h1>Pendulum Wave</h1>
+    <p id="specLine">15 pendulums · 51–65 oscillations · 60 second cycle</p>
+  </div>
+
+  <div id="timer-wrap">
+    <div id="timer">60.00</div>
+    <div id="timer-label">UNTIL REALIGNMENT</div>
+  </div>
+
+  <div id="phase-wrap">
+    <div id="phase">
+      PATTERN <span id="patternName">—</span><br>
+      CYCLE &nbsp;&nbsp;<span id="cycleNum">1</span><br>
+      SPEED &nbsp;&nbsp;<span id="speedVal">1.0×</span>
+    </div>
+  </div>
+
+  <div id="btn-row">
+    <button class="btn active" id="btnRun">PAUSE</button>
+    <button class="btn" id="btnReset">RESET</button>
+    <button class="btn active" id="btnTrails">TRAILS ON</button>
+    <button class="btn" id="btnSlow">0.5×</button>
+    <button class="btn" id="btnFast">2×</button>
+    <button class="btn active" id="btnCam">AUTO CAM</button>
+  </div>
+
+  <div id="panel-wrap">
+    <button id="panel-toggle">
+      <span class="arrow">▲</span>
+      PHYSICS VARIABLES
+      <span id="panel-badge">HARVARD SPEC</span>
+    </button>
+
+    <div id="panel">
+      <div class="ctrl">
+        <div class="ctrl-label">Pendulums</div>
+        <div class="ctrl-row">
+          <input type="range" id="slN" min="5" max="25" step="1" value="15">
+          <span class="val" id="vN">15</span>
+        </div>
+      </div>
+      <div class="ctrl">
+        <div class="ctrl-label">Osc min / cycle</div>
+        <div class="ctrl-row">
+          <input type="range" id="slOmin" min="20" max="60" step="1" value="51">
+          <span class="val" id="vOmin">51</span>
+        </div>
+      </div>
+      <div class="ctrl">
+        <div class="ctrl-label">Osc max / cycle</div>
+        <div class="ctrl-row">
+          <input type="range" id="slOmax" min="30" max="80" step="1" value="65">
+          <span class="val" id="vOmax">65</span>
+        </div>
+      </div>
+      <div class="ctrl">
+        <div class="ctrl-label">Cycle time (s)</div>
+        <div class="ctrl-row">
+          <input type="range" id="slT" min="20" max="120" step="5" value="60">
+          <span class="val" id="vT">60</span>
+        </div>
+      </div>
+      <div class="ctrl">
+        <div class="ctrl-label">Gravity (m/s²)</div>
+        <div class="ctrl-row">
+          <input type="range" id="slG" min="1" max="25" step="0.5" value="9.81">
+          <span class="val" id="vG">9.81</span>
+        </div>
+      </div>
+      <div class="ctrl">
+        <div class="ctrl-label">Amplitude (°)</div>
+        <div class="ctrl-row">
+          <input type="range" id="slAmp" min="5" max="45" step="1" value="15">
+          <span class="val" id="vAmp">15°</span>
+        </div>
+      </div>
+      <div class="ctrl">
+        <div class="ctrl-label">Damping</div>
+        <div class="ctrl-row">
+          <input type="range" id="slDamp" min="0" max="0.04" step="0.001" value="0">
+          <span class="val" id="vDamp">0.000</span>
+        </div>
+      </div>
+      <div class="ctrl">
+        <div class="ctrl-label">Trail length</div>
+        <div class="ctrl-row">
+          <input type="range" id="slTrail" min="60" max="600" step="20" value="300">
+          <span class="val" id="vTrail">300</span>
+        </div>
+      </div>
+
+      <div id="panel-footer">
+        <button class="panel-btn" id="btnRestore">RESTORE HARVARD</button>
+        <button class="panel-btn apply" id="btnApply">APPLY &amp; RESET</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="hint">DRAG · ORBIT<br>SCROLL · ZOOM<br>RIGHT DRAG · PAN</div>
+
+  <div id="realign">
+    REALIGNMENT<br>
+    <p>all pendulums in phase</p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const HARVARD = { N: 15, oMin: 51, oMax: 65, T: 60, g: 9.81, amp: 15, damp: 0, trail: 300 };
+let params = { ...HARVARD };
+
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.setClearColor(0x0c0a08);
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x0c0a08, 30, 80);
+const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 200);
+
+function resize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+resize(); window.addEventListener('resize', resize);
+
+scene.add(new THREE.AmbientLight(0x2a1e10, 2));
+const warmLight = new THREE.PointLight(0xffd580, 2.5, 40);
+warmLight.position.set(0, 8, 4); warmLight.castShadow = true; scene.add(warmLight);
+const fillLight = new THREE.DirectionalLight(0x4466aa, 0.3);
+fillLight.position.set(-5, 3, -8); scene.add(fillLight);
+
+function pendulumLength(n, T, g) { return g * (T/n) * (T/n) / (4 * Math.PI * Math.PI); }
+function pendulumAngle(n, T, t, ampRad, damp) { return ampRad * Math.exp(-damp * t) * Math.cos(2 * Math.PI * n / T * t); }
+
+const woodMat = new THREE.MeshPhongMaterial({ color: 0x5c3a1e, specular: 0x331a08, shininess: 20 });
+const stringMat = new THREE.LineBasicMaterial({ color: 0x8a7a60, transparent: true, opacity: 0.6 });
+const floorMat = new THREE.MeshPhongMaterial({ color: 0x100c08, specular: 0x080604, shininess: 5 });
+
+const floor3d = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), floorMat);
+floor3d.rotation.x = -Math.PI / 2; floor3d.position.y = -11.5; floor3d.receiveShadow = true;
+scene.add(floor3d);
+
+let balls = [], strings = [], trailLines = [], trailBuffers = [], frameObjects = [];
+let showTrails = true;
+const TRAIL_MAX = 600;
+
+function clearScene() {
+  [...balls.map(b => b.mesh), ...strings, ...trailLines, ...frameObjects].forEach(m => {
+    scene.remove(m);
+    if (m.geometry) m.geometry.dispose();
+    if (m.material && !m.material.isMaterial) return;
+  });
+  balls = []; strings = []; trailLines = []; trailBuffers = []; frameObjects = [];
+}
+
+function addFrame(geo, mat, pos) {
+  const m = new THREE.Mesh(geo, mat);
+  if (pos) m.position.set(...pos);
+  m.castShadow = true; scene.add(m); frameObjects.push(m); return m;
+}
+
+function buildScene() {
+  clearScene();
+  const { N, oMin, oMax, T, g, amp, damp } = params;
+  const SPACING = 1.8, TOTAL_W = (N - 1) * SPACING;
+  const ns = Array.from({ length: N }, (_, i) => oMin + (oMax - oMin) * i / (N - 1));
+  const maxL = pendulumLength(ns[0], T, g);
+  const MAX_LEN = 8;
+
+  addFrame(new THREE.BoxGeometry(TOTAL_W + 4, 0.22, 0.22), woodMat, [0, 0, 0]);
+  addFrame(new THREE.BoxGeometry(TOTAL_W + 4, 0.1, 0.1), woodMat, [0, -8, 0]);
+  [-TOTAL_W/2 - 1.5, TOTAL_W/2 + 1.5].forEach(x => {
+    addFrame(new THREE.BoxGeometry(0.18, 11, 0.18), woodMat, [x, -5.5, 0]);
+    addFrame(new THREE.BoxGeometry(1.2, 0.14, 0.6), woodMat, [x, -11.2, 0]);
+  });
+
+  for (let i = 0; i < N; i++) {
+    const n = ns[i];
+    const L = pendulumLength(n, T, g);
+    const lenWorld = (L / maxL) * MAX_LEN;
+    const px = -TOTAL_W / 2 + i * SPACING;
+
+    const c = new THREE.Color(); c.setHSL(0.06, 0.15, 0.22 + (i/(N-1)) * 0.08);
+    const spec = new THREE.Color(); spec.setHSL(0.08, 0.3, 0.6);
+    const bMat = new THREE.MeshPhongMaterial({ color: c, specular: spec, shininess: 120, emissive: new THREE.Color(0x1a0e05), emissiveIntensity: 0.2 });
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.32, 32, 24), bMat);
+    ball.castShadow = true; scene.add(ball);
+    balls.push({ mesh: ball, px, lenWorld, n });
+
+    const strGeo = new THREE.BufferGeometry();
+    strGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
+    const str = new THREE.Line(strGeo, stringMat); scene.add(str); strings.push(str);
+
+    const trailGeo = new THREE.BufferGeometry();
+    trailGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(TRAIL_MAX * 3), 3));
+    trailGeo.setDrawRange(0, 0);
+    const hue = 0.55 + (i / (N-1)) * 0.35;
+    const col = new THREE.Color(); col.setHSL(hue, 0.7, 0.55);
+    const tMat = new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.5 });
+    const tLine = new THREE.Line(trailGeo, tMat);
+    tLine.visible = showTrails; scene.add(tLine);
+    trailLines.push(tLine); trailBuffers.push([]);
+  }
+}
+
+// Camera
+let sph = { theta: 0.2, phi: 1.25, r: 28 };
+let camTarget = new THREE.Vector3(0, -3, 0);
+let isDragging = false, isRight = false, prev = { x: 0, y: 0 };
+let autoCam = true, autoAngle = 0.2;
+
+function applyCam() {
+  camera.position.set(
+    camTarget.x + sph.r * Math.sin(sph.phi) * Math.sin(sph.theta),
+    camTarget.y + sph.r * Math.cos(sph.phi),
+    camTarget.z + sph.r * Math.sin(sph.phi) * Math.cos(sph.theta)
+  );
+  camera.lookAt(camTarget);
+}
+applyCam();
+
+function disableAutoCam() { if (autoCam) { autoCam = false; document.getElementById('btnCam').classList.remove('active'); } }
+canvas.addEventListener('mousedown', e => { isDragging = true; isRight = e.button === 2; prev = { x: e.clientX, y: e.clientY }; disableAutoCam(); });
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+window.addEventListener('mousemove', e => {
+  if (!isDragging) return;
+  const dx = e.clientX - prev.x, dy = e.clientY - prev.y;
+  prev = { x: e.clientX, y: e.clientY };
+  if (isRight) {
+    const right = new THREE.Vector3(); camera.getWorldDirection(right); right.cross(camera.up).normalize();
+    camTarget.addScaledVector(right, -dx * 0.03); camTarget.addScaledVector(camera.up, dy * 0.03);
+  } else {
+    sph.theta -= dx * 0.007;
+    sph.phi = Math.max(0.15, Math.min(Math.PI - 0.1, sph.phi + dy * 0.007));
+  }
+  applyCam();
+});
+window.addEventListener('mouseup', () => isDragging = false);
+canvas.addEventListener('wheel', e => { sph.r = Math.max(6, Math.min(70, sph.r + e.deltaY * 0.04)); applyCam(); e.preventDefault(); }, { passive: false });
+
+let tDist = null;
+canvas.addEventListener('touchstart', e => {
+  if (e.touches.length === 1) { isDragging = true; isRight = false; prev = { x: e.touches[0].clientX, y: e.touches[0].clientY }; disableAutoCam(); }
+  if (e.touches.length === 2) tDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+});
+canvas.addEventListener('touchmove', e => {
+  if (e.touches.length === 1 && isDragging) {
+    const dx = e.touches[0].clientX - prev.x, dy = e.touches[0].clientY - prev.y;
+    prev = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    sph.theta -= dx * 0.007; sph.phi = Math.max(0.15, Math.min(Math.PI - 0.1, sph.phi + dy * 0.007)); applyCam();
+  }
+  if (e.touches.length === 2) {
+    const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+    sph.r = Math.max(6, Math.min(70, sph.r - (d - tDist) * 0.05)); tDist = d; applyCam();
+  }
+  e.preventDefault();
+}, { passive: false });
+canvas.addEventListener('touchend', () => isDragging = false);
+
+function detectPattern(t, T) {
+  const pct = (t % T) / T;
+  if (pct < 0.04 || pct > 0.97) return 'REALIGNED';
+  if (Math.abs(pct - 0.5) < 0.03) return 'ANTI-PHASE';
+  if (Math.abs(pct - 0.25) < 0.04 || Math.abs(pct - 0.75) < 0.04) return 'SPLIT WAVE';
+  if (pct < 0.15 || pct > 0.85) return 'SNAKE';
+  if (Math.abs(pct - 0.33) < 0.05 || Math.abs(pct - 0.66) < 0.05) return '3-GROUP';
+  return 'COMPLEX';
+}
+
+let running = true, simT = 0, lastTS = null, speed = 1.0, cycles = 1, realignFlash = 0;
+const realignEl = document.getElementById('realign');
+
+function resetSim() {
+  simT = 0; lastTS = null; cycles = 1; realignFlash = 0;
+  trailBuffers.forEach(b => b.length = 0);
+  trailLines.forEach(l => l.geometry.setDrawRange(0, 0));
+  realignEl.style.opacity = '0';
+  document.getElementById('cycleNum').textContent = '1';
+}
+
+function updateScene(dt) {
+  const { N, oMin, oMax, T, g, amp, damp } = params;
+  const ampRad = amp * Math.PI / 180;
+  const ns = Array.from({ length: N }, (_, i) => oMin + (oMax - oMin) * i / (N - 1));
+  const maxL = pendulumLength(ns[0], T, g);
+  const MAX_LEN = 8;
+  const zOff = -(simT * 0.05);
+
+  const prevMod = (simT - dt) % T;
+  const curMod = simT % T;
+  if (prevMod > curMod + 0.1) { cycles++; realignFlash = 1.5; document.getElementById('cycleNum').textContent = cycles; }
+  if (realignFlash > 0) { realignFlash -= dt * 2; realignEl.style.opacity = Math.max(0, Math.min(1, realignFlash)).toFixed(2); }
+
+  for (let i = 0; i < balls.length; i++) {
+    const { mesh, px } = balls[i];
+    const n = ns[i];
+    const L = pendulumLength(n, T, g);
+    const lenWorld = (L / maxL) * MAX_LEN;
+    const theta = pendulumAngle(n, T, simT, ampRad, damp);
+    const bx = px + lenWorld * Math.sin(theta);
+    const by = -lenWorld * Math.cos(theta);
+    const bz = zOff;
+    mesh.position.set(bx, by, bz);
+
+    const sp = strings[i].geometry.attributes.position;
+    sp.array[0] = px; sp.array[1] = 0; sp.array[2] = bz;
+    sp.array[3] = bx; sp.array[4] = by; sp.array[5] = bz;
+    sp.needsUpdate = true;
+
+    if (showTrails) {
+      trailBuffers[i].push(new THREE.Vector3(bx, by, bz));
+      if (trailBuffers[i].length > params.trail) trailBuffers[i].shift();
+      const buf = trailLines[i].geometry.attributes.position;
+      const pts = trailBuffers[i];
+      for (let j = 0; j < pts.length; j++) { buf.array[j*3] = pts[j].x; buf.array[j*3+1] = pts[j].y; buf.array[j*3+2] = pts[j].z; }
+      buf.needsUpdate = true;
+      trailLines[i].geometry.setDrawRange(0, pts.length);
+    }
+  }
+
+  if (autoCam) { autoAngle += dt * 0.08; sph.theta = autoAngle; sph.phi = 1.2 + Math.sin(autoAngle * 0.3) * 0.15; }
+  camTarget.z = zOff + 5; applyCam();
+  warmLight.position.set(0, 8, zOff + 4);
+
+  document.getElementById('timer').textContent = (T - (simT % T)).toFixed(2);
+  document.getElementById('patternName').textContent = detectPattern(simT, T);
+}
+
+// ── Slider panel logic ────────────────────────────────────────────────────────
+const sliderDefs = [
+  { id: 'slN',    valId: 'vN',    key: 'N',    fmt: v => Math.round(v) },
+  { id: 'slOmin', valId: 'vOmin', key: 'oMin', fmt: v => Math.round(v) },
+  { id: 'slOmax', valId: 'vOmax', key: 'oMax', fmt: v => Math.round(v) },
+  { id: 'slT',    valId: 'vT',    key: 'T',    fmt: v => Math.round(v) },
+  { id: 'slG',    valId: 'vG',    key: 'g',    fmt: v => parseFloat(v).toFixed(2) },
+  { id: 'slAmp',  valId: 'vAmp',  key: 'amp',  fmt: v => Math.round(v) + '°' },
+  { id: 'slDamp', valId: 'vDamp', key: 'damp', fmt: v => parseFloat(v).toFixed(3) },
+  { id: 'slTrail',valId: 'vTrail',key: 'trail',fmt: v => Math.round(v) },
+];
+
+function updateBadge() {
+  const mod = sliderDefs.some(({ id, key }) => parseFloat(document.getElementById(id).value) !== HARVARD[key]);
+  const badge = document.getElementById('panel-badge');
+  badge.textContent = mod ? 'MODIFIED' : 'HARVARD SPEC';
+  badge.classList.toggle('modified', mod);
+}
+
+function updateHighlights() {
+  sliderDefs.forEach(({ id, valId, key }) => {
+    const mod = parseFloat(document.getElementById(id).value) !== HARVARD[key];
+    document.getElementById(id).classList.toggle('modified', mod);
+    document.getElementById(valId).classList.toggle('modified', mod);
+  });
+}
+
+sliderDefs.forEach(({ id, valId, fmt }) => {
+  document.getElementById(id).addEventListener('input', function() {
+    document.getElementById(valId).textContent = fmt(this.value);
+    updateBadge(); updateHighlights();
+  });
+});
+
+document.getElementById('panel-toggle').addEventListener('click', function() {
+  const open = document.getElementById('panel').classList.toggle('open');
+  this.classList.toggle('open', open);
+});
+
+document.getElementById('btnApply').addEventListener('click', () => {
+  sliderDefs.forEach(({ id, key }) => { params[key] = parseFloat(document.getElementById(id).value); });
+  buildScene(); resetSim(); updateBadge(); updateHighlights();
+  const { N, oMin, oMax, T } = params;
+  document.getElementById('specLine').textContent = `${Math.round(N)} pendulums · ${Math.round(oMin)}–${Math.round(oMax)} oscillations · ${Math.round(T)} second cycle`;
+});
+
+document.getElementById('btnRestore').addEventListener('click', () => {
+  Object.assign(params, HARVARD);
+  sliderDefs.forEach(({ id, valId, key, fmt }) => {
+    document.getElementById(id).value = HARVARD[key];
+    document.getElementById(valId).textContent = fmt(HARVARD[key]);
+  });
+  buildScene(); resetSim(); updateBadge(); updateHighlights();
+  document.getElementById('specLine').textContent = '15 pendulums · 51–65 oscillations · 60 second cycle';
+});
+
+// ── Main buttons ──────────────────────────────────────────────────────────────
+document.getElementById('btnRun').addEventListener('click', function() {
+  running = !running; lastTS = null; this.textContent = running ? 'PAUSE' : 'PLAY'; this.classList.toggle('active', running);
+});
+document.getElementById('btnReset').addEventListener('click', () => { buildScene(); resetSim(); });
+document.getElementById('btnTrails').addEventListener('click', function() {
+  showTrails = !showTrails; trailLines.forEach(l => l.visible = showTrails);
+  if (!showTrails) trailBuffers.forEach(b => b.length = 0);
+  this.textContent = showTrails ? 'TRAILS ON' : 'TRAILS OFF'; this.classList.toggle('active', showTrails);
+});
+document.getElementById('btnSlow').addEventListener('click', function() {
+  speed = speed === 0.5 ? 1.0 : 0.5; document.getElementById('speedVal').textContent = speed.toFixed(1) + '×';
+  document.getElementById('btnFast').classList.remove('active'); this.classList.toggle('active', speed === 0.5);
+});
+document.getElementById('btnFast').addEventListener('click', function() {
+  speed = speed === 2.0 ? 1.0 : 2.0; document.getElementById('speedVal').textContent = speed.toFixed(1) + '×';
+  document.getElementById('btnSlow').classList.remove('active'); this.classList.toggle('active', speed === 2.0);
+});
+document.getElementById('btnCam').addEventListener('click', function() { autoCam = !autoCam; this.classList.toggle('active', autoCam); });
+
+// ── Loop ──────────────────────────────────────────────────────────────────────
+function animate(ts) {
+  requestAnimationFrame(animate);
+  if (running) {
+    if (lastTS === null) lastTS = ts;
+    const dt = Math.min((ts - lastTS) / 1000, 0.05) * speed;
+    lastTS = ts; simT += dt; updateScene(dt);
+  }
+  renderer.render(scene, camera);
+}
+
+buildScene();
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>

@@ -143,7 +143,6 @@
   <div id="btn-row">
     <button class="btn active" id="btnRun">PAUSE</button>
     <button class="btn" id="btnReset">RESET</button>
-    <button class="btn active" id="btnTrails">TRAILS ON</button>
     <button class="btn" id="btnSlow">0.5×</button>
     <button class="btn" id="btnFast">2×</button>
     <button class="btn active" id="btnCam">AUTO CAM</button>
@@ -206,14 +205,6 @@
           <span class="val" id="vDamp">0.000</span>
         </div>
       </div>
-      <div class="ctrl">
-        <div class="ctrl-label">Trail length</div>
-        <div class="ctrl-row">
-          <input type="range" id="slTrail" min="60" max="600" step="20" value="300">
-          <span class="val" id="vTrail">300</span>
-        </div>
-      </div>
-
       <div id="panel-footer">
         <button class="panel-btn" id="btnRestore">RESTORE HARVARD</button>
         <button class="panel-btn apply" id="btnApply">APPLY &amp; RESET</button>
@@ -231,7 +222,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-const HARVARD = { N: 15, oMin: 51, oMax: 65, T: 60, g: 9.81, amp: 15, damp: 0, trail: 300 };
+const HARVARD = { N: 15, oMin: 51, oMax: 65, T: 60, g: 9.81, amp: 15, damp: 0 };
 let params = { ...HARVARD };
 
 const canvas = document.getElementById('c');
@@ -267,17 +258,15 @@ const floor3d = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), floorMat);
 floor3d.rotation.x = -Math.PI / 2; floor3d.position.y = -11.5; floor3d.receiveShadow = true;
 scene.add(floor3d);
 
-let balls = [], strings = [], trailLines = [], trailBuffers = [], frameObjects = [];
-let showTrails = true;
-const TRAIL_MAX = 600;
+let balls = [], strings = [], frameObjects = [];
 
 function clearScene() {
-  [...balls.map(b => b.mesh), ...strings, ...trailLines, ...frameObjects].forEach(m => {
+  [...balls.map(b => b.mesh), ...strings, ...frameObjects].forEach(m => {
     scene.remove(m);
     if (m.geometry) m.geometry.dispose();
     if (m.material && !m.material.isMaterial) return;
   });
-  balls = []; strings = []; trailLines = []; trailBuffers = []; frameObjects = [];
+  balls = []; strings = []; frameObjects = [];
 }
 
 function addFrame(geo, mat, pos) {
@@ -318,15 +307,6 @@ function buildScene() {
     strGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
     const str = new THREE.Line(strGeo, stringMat); scene.add(str); strings.push(str);
 
-    const trailGeo = new THREE.BufferGeometry();
-    trailGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(TRAIL_MAX * 3), 3));
-    trailGeo.setDrawRange(0, 0);
-    const hue = 0.55 + (i / (N-1)) * 0.35;
-    const col = new THREE.Color(); col.setHSL(hue, 0.7, 0.55);
-    const tMat = new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.5 });
-    const tLine = new THREE.Line(trailGeo, tMat);
-    tLine.visible = showTrails; scene.add(tLine);
-    trailLines.push(tLine); trailBuffers.push([]);
   }
 }
 
@@ -399,8 +379,6 @@ const realignEl = document.getElementById('realign');
 
 function resetSim() {
   simT = 0; lastTS = null; cycles = 1; realignFlash = 0;
-  trailBuffers.forEach(b => b.length = 0);
-  trailLines.forEach(l => l.geometry.setDrawRange(0, 0));
   realignEl.style.opacity = '0';
   document.getElementById('cycleNum').textContent = '1';
 }
@@ -435,24 +413,11 @@ function updateScene(dt) {
     sp.array[3] = bx; sp.array[4] = by;  sp.array[5] = 0;
     sp.needsUpdate = true;
 
-    if (showTrails) {
-      // Trail uses a Z offset so history fans out behind in world space
-      const trailZ = -(simT * 0.05);
-      trailBuffers[i].push(new THREE.Vector3(bx, by, trailZ));
-      if (trailBuffers[i].length > params.trail) trailBuffers[i].shift();
-      const buf = trailLines[i].geometry.attributes.position;
-      const pts = trailBuffers[i];
-      for (let j = 0; j < pts.length; j++) { buf.array[j*3] = pts[j].x; buf.array[j*3+1] = pts[j].y; buf.array[j*3+2] = pts[j].z; }
-      buf.needsUpdate = true;
-      trailLines[i].geometry.setDrawRange(0, pts.length);
-    }
   }
 
   if (autoCam) { autoAngle += dt * 0.08; sph.theta = autoAngle; sph.phi = 1.2 + Math.sin(autoAngle * 0.3) * 0.15; }
-  // Camera target drifts back in Z so trails are always visible behind the apparatus
-  camTarget.z = -(simT * 0.025);
   applyCam();
-  warmLight.position.set(0, 8, camTarget.z + 4);
+  warmLight.position.set(0, 8, 4);
 
   document.getElementById('timer').textContent = (T - (simT % T)).toFixed(2);
   document.getElementById('patternName').textContent = detectPattern(simT, T);
@@ -467,7 +432,6 @@ const sliderDefs = [
   { id: 'slG',    valId: 'vG',    key: 'g',    fmt: v => parseFloat(v).toFixed(2) },
   { id: 'slAmp',  valId: 'vAmp',  key: 'amp',  fmt: v => Math.round(v) + '°' },
   { id: 'slDamp', valId: 'vDamp', key: 'damp', fmt: v => parseFloat(v).toFixed(3) },
-  { id: 'slTrail',valId: 'vTrail',key: 'trail',fmt: v => Math.round(v) },
 ];
 
 function updateBadge() {
@@ -519,11 +483,7 @@ document.getElementById('btnRun').addEventListener('click', function() {
   running = !running; lastTS = null; this.textContent = running ? 'PAUSE' : 'PLAY'; this.classList.toggle('active', running);
 });
 document.getElementById('btnReset').addEventListener('click', () => { buildScene(); resetSim(); });
-document.getElementById('btnTrails').addEventListener('click', function() {
-  showTrails = !showTrails; trailLines.forEach(l => l.visible = showTrails);
-  if (!showTrails) trailBuffers.forEach(b => b.length = 0);
-  this.textContent = showTrails ? 'TRAILS ON' : 'TRAILS OFF'; this.classList.toggle('active', showTrails);
-});
+
 document.getElementById('btnSlow').addEventListener('click', function() {
   speed = speed === 0.5 ? 1.0 : 0.5; document.getElementById('speedVal').textContent = speed.toFixed(1) + '×';
   document.getElementById('btnFast').classList.remove('active'); this.classList.toggle('active', speed === 0.5);

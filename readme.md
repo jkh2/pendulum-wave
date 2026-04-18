@@ -8,6 +8,10 @@ No dependencies. No build step. Pure HTML, CSS, and JavaScript.
 
 ---
 
+<video src="demo.mp4" autoplay loop muted playsinline width="100%"></video>
+
+---
+
 ## What Is a Pendulum Wave?
 
 A pendulum wave is one of the most beautiful demonstrations in classical physics. A set of pendulums — each a slightly different length — are released simultaneously. Because each pendulum completes a different number of oscillations per unit time, they drift apart and back together in patterns that look coordinated but are entirely emergent.

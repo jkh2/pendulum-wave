@@ -64,9 +64,9 @@ The simulator detects and labels each pattern in real time.
 
 ---
 
-## The 3D Approach — Time as Space
+## The 3D Approach
 
-The Z-axis maps time. Each ball extrudes its position history backward in depth as the simulation runs, turning the wave into a sculptural surface you can orbit and inspect — a spacetime diagram of emergent order, with every pattern the wave has passed through preserved as geometry in three dimensions.
+The simulation renders a faithful physical apparatus in three dimensions — wooden crossbeam, leg posts, strings, and pool balls — lit with warm overhead lighting and a reflective floor. An orbit camera lets you inspect the wave patterns from any angle, revealing depth and height relationships that a flat view can't show.
 
 The wooden frame, warm overhead lighting, and pool-ball geometry are faithful to the physical apparatus.
 
@@ -74,15 +74,29 @@ The wooden frame, warm overhead lighting, and pool-ball geometry are faithful to
 
 ## Controls
 
+### Camera
 | Control | Function |
 |---|---|
 | Left drag | Orbit camera |
 | Right drag | Pan |
 | Scroll | Zoom |
 | Auto Cam | Cinematic slow orbit |
-| 0.5× / 2× | Time scale |
-| Trails On/Off | Toggle spacetime ribbon |
-| Pause / Reset | Playback control |
+
+### Playback
+| Control | Function |
+|---|---|
+| Pause / Play | Stop and resume simulation |
+| Reset | Restart from full alignment |
+| 0.5× / 2× | Slow down or speed up time |
+
+### Swing Mode
+Select the plane of oscillation before or after starting the simulation. Switching mode resets to full alignment.
+
+| Mode | Description |
+|---|---|
+| Left-Right | Classic Harvard view — balls swing along the frame axis |
+| Forward-Back | Balls swing perpendicular to the frame, toward and away from the viewer |
+| Circular | Both axes oscillate simultaneously with a 90° phase offset — each ball traces an elliptical path, creating a rotating 3D wave sculpture |
 
 ### Physics Panel
 
@@ -106,7 +120,7 @@ Click **RESTORE HARVARD** to return to the exact original spec in one click.
 - Emergent wave behavior from independent oscillators
 - Frequency spacing and beating phenomena
 - Energy decay under damping
-- Spacetime visualization of periodic systems
+- Multi-axis oscillation and Lissajous motion
 - Real-time pattern recognition in oscillatory systems
 
 ---

@@ -146,6 +146,10 @@
     <button class="btn" id="btnSlow">0.5×</button>
     <button class="btn" id="btnFast">2×</button>
     <button class="btn active" id="btnCam">AUTO CAM</button>
+    <span style="width:1px; height:24px; background:rgba(255,255,255,0.1); margin: 0 4px;"></span>
+    <button class="btn active" id="btnSwingLR">LEFT-RIGHT</button>
+    <button class="btn" id="btnSwingFB">FORWARD-BACK</button>
+    <button class="btn" id="btnSwingCircle">CIRCULAR</button>
   </div>
 
   <div id="panel-wrap">
@@ -375,6 +379,7 @@ function detectPattern(t, T) {
 }
 
 let running = true, simT = 0, lastTS = null, speed = 1.0, cycles = 1, realignFlash = 0;
+let swingMode = 'LR'; // 'LR' | 'FB' | 'circle'
 const realignEl = document.getElementById('realign');
 
 function resetSim() {
@@ -401,18 +406,28 @@ function updateScene(dt) {
     const L = pendulumLength(n, T, g);
     const lenWorld = (L / maxL) * MAX_LEN;
     const theta = pendulumAngle(n, T, simT, ampRad, damp);
-    const bx = px + lenWorld * Math.sin(theta);
-    const by = -lenWorld * Math.cos(theta);
+    const swing = lenWorld * Math.sin(theta);
+    const drop  = lenWorld * Math.cos(theta);
 
-    // Ball stays at Z=0 — frame, pivots, strings all stay connected
-    mesh.position.set(bx, by, 0);
+    let bx, by, bz;
+    if (swingMode === 'LR') {
+      bx = px + swing; by = -drop; bz = 0;
+    } else if (swingMode === 'FB') {
+      bx = px; by = -drop; bz = swing;
+    } else {
+      // Circular — X and Z both oscillate, Z with a 90° phase offset
+      const thetaZ = pendulumAngle(n, T, simT + (T / ns[i]) * 0.25, ampRad, damp);
+      bx = px + swing;
+      by = -lenWorld * Math.cos(Math.max(Math.abs(theta), Math.abs(thetaZ)));
+      bz = lenWorld * Math.sin(thetaZ);
+    }
 
-    // String top and bottom both at Z=0 — always attached to beam
+    mesh.position.set(bx, by, bz);
+
     const sp = strings[i].geometry.attributes.position;
-    sp.array[0] = px; sp.array[1] = 0;   sp.array[2] = 0;
-    sp.array[3] = bx; sp.array[4] = by;  sp.array[5] = 0;
+    sp.array[0] = px; sp.array[1] = 0;  sp.array[2] = 0;
+    sp.array[3] = bx; sp.array[4] = by; sp.array[5] = bz;
     sp.needsUpdate = true;
-
   }
 
   if (autoCam) { autoAngle += dt * 0.08; sph.theta = autoAngle; sph.phi = 1.2 + Math.sin(autoAngle * 0.3) * 0.15; }
@@ -493,6 +508,16 @@ document.getElementById('btnFast').addEventListener('click', function() {
   document.getElementById('btnSlow').classList.remove('active'); this.classList.toggle('active', speed === 2.0);
 });
 document.getElementById('btnCam').addEventListener('click', function() { autoCam = !autoCam; this.classList.toggle('active', autoCam); });
+
+const swingBtns = { btnSwingLR: 'LR', btnSwingFB: 'FB', btnSwingCircle: 'circle' };
+Object.entries(swingBtns).forEach(([id, mode]) => {
+  document.getElementById(id).addEventListener('click', function() {
+    swingMode = mode;
+    Object.keys(swingBtns).forEach(k => document.getElementById(k).classList.remove('active'));
+    this.classList.add('active');
+    resetSim();
+  });
+});
 
 // ── Loop ──────────────────────────────────────────────────────────────────────
 function animate(ts) {

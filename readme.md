@@ -8,7 +8,7 @@ No dependencies. No build step. Pure HTML, CSS, and JavaScript.
 
 ---
 
-<video src="demo.mp4" autoplay loop muted playsinline width="100%"></video>
+![Pendulum Wave Demo](demo.gif)
 
 ---
 
